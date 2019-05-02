@@ -1,0 +1,53 @@
+diff --git a/PhysicsTools/NanoAOD/python/electrons_cff.py b/PhysicsTools/NanoAOD/python/electrons_cff.py
+index 26dc864..70b78f5 100644
+--- a/PhysicsTools/NanoAOD/python/electrons_cff.py
++++ b/PhysicsTools/NanoAOD/python/electrons_cff.py
+@@ -400,6 +400,11 @@ electronTable = cms.EDProducer("SimpleCandidateFlatTableProducer",
+         convVeto = Var("passConversionVeto()",bool,doc="pass conversion veto"),
+         lostHits = Var("gsfTrack.hitPattern.numberOfLostHits('MISSING_INNER_HITS')","uint8",doc="number of missing inner hits"),
+         isPFcand = Var("pfCandidateRef().isNonnull()",bool,doc="electron is PF candidate"),
++        ##
++        jet_pTRel = Var("?userCand('jetForLepJetVar').isNonnull()?userFloat('ptRel'):0", float, doc="ptrel for Ghent MVA"),
++        jet_ptRatio = Var("?userCand('jetForLepJetVar').isNonnull()?(?userFloat('ptRel')!=0.?min(userFloat('ptRatio'),1.5):1./((userCand('jetForLepJetVar').p4().pt()/pt)-(1./userCand('jetForLepJetVar').jecFactor('L1FastJet'))+1)):1", float, "ptRatio for Ghent MVA"),
++        jet_trackMult = Var("?userCand('jetForLepJetVar').isNonnull()&&(userFloat('ptRel')!=0.)?userFloat('jetNDauChargedMVASel'):1", int, doc="jet trackMult for Ghent MVA"),
++        jet_deepcsv = Var("?userCand('jetForLepJetVar').isNonnull()?max(userCand('jetForLepJetVar').bDiscriminator('pfDeepCSVJetTags:probb')+userCand('jetForLepJetVar').bDiscriminator('pfDeepCSVJetTags:probbb'),0.0):0.0", float, doc="jet deepcsv for Ghent MVA"),
+     ),
+     externalVariables = cms.PSet(
+         mvaTTH = ExtVar(cms.InputTag("electronMVATTH"),float, doc="TTH MVA lepton ID score",precision=14),
+diff --git a/PhysicsTools/NanoAOD/python/muons_cff.py b/PhysicsTools/NanoAOD/python/muons_cff.py
+index 1bc0188..50e59f6 100644
+--- a/PhysicsTools/NanoAOD/python/muons_cff.py
++++ b/PhysicsTools/NanoAOD/python/muons_cff.py
+@@ -164,6 +164,12 @@ muonTable = cms.EDProducer("SimpleCandidateFlatTableProducer",
+         multiIsoId = Var("?passed('MultiIsoMedium')?2:passed('MultiIsoLoose')","uint8",doc="MultiIsoId from miniAOD selector (1=MultiIsoLoose, 2=MultiIsoMedium)"),
+         triggerIdLoose = Var("passed('TriggerIdLoose')",bool,doc="TriggerIdLoose ID"),
+         inTimeMuon = Var("passed('InTimeMuon')",bool,doc="inTimeMuon ID"),
++        ##
++        jet_pTRel = Var("?userCand('jetForLepJetVar').isNonnull()?userFloat('ptRel'):0", float, doc="ptrel for Ghent MVA"),
++        jet_ptRatio = Var("?userCand('jetForLepJetVar').isNonnull()?(?userFloat('ptRel')!=0.?min(userFloat('ptRatio'),1.5):1./((userCand('jetForLepJetVar').p4().pt()/pt)-(1./userCand('jetForLepJetVar').jecFactor('L1FastJet'))+1)):1", float, "ptRatio for Ghent MVA"),
++        jet_trackMult = Var("?userCand('jetForLepJetVar').isNonnull()&&(userFloat('ptRel')!=0.)?userFloat('jetNDauChargedMVASel'):1", int, doc="jet trackMult for Ghent MVA"),
++        relIso03_EA = Var("userFloat('PFIsoAll')/pt", float, doc="reliso with EA correction for Ghent MVA"),
++        jet_deepcsv = Var("?userCand('jetForLepJetVar').isNonnull()?max(userCand('jetForLepJetVar').bDiscriminator('pfDeepCSVJetTags:probb')+userCand('jetForLepJetVar').bDiscriminator('pfDeepCSVJetTags:probbb'),0.0):0.0", float, doc="jet deepcsv for Ghent MVA"),
+     ),
+     externalVariables = cms.PSet(
+         mvaTTH = ExtVar(cms.InputTag("muonMVATTH"),float, doc="TTH MVA lepton ID score",precision=14),
+diff --git a/PhysicsTools/PatAlgos/plugins/BaseMVAValueMapProducer.h b/PhysicsTools/PatAlgos/plugins/BaseMVAValueMapProducer.h
+index f937538..b928fd1 100644
+--- a/PhysicsTools/PatAlgos/plugins/BaseMVAValueMapProducer.h
++++ b/PhysicsTools/PatAlgos/plugins/BaseMVAValueMapProducer.h
+@@ -167,6 +167,15 @@ BaseMVAValueMapProducer<T>::produce(edm::Event& iEvent, const edm::EventSetup& i
+         fillAdditionalVariables(o);
+     if(tmva_){
+         mvaOut[0].push_back(isClassifier_ ? reader_->EvaluateMVA(name_) : reader_->EvaluateRegression(name_)[0]);
++#ifdef EDM_ML_DEBUG
++        std::stringstream dbgS;
++        dbgS << "(";
++        for ( const auto& var : variablesOrder_ ) {
++          dbgS << var << "=" << values_[positions_[var]] << ", ";
++        }
++        dbgS << ") -> " << mvaOut[0].back();
++        LogDebug("MVAValueMapProducer") << "TMVA evaluated with " << name_ << " from " << weightfilename_ << "\n" << dbgS.str();
++#endif
+     }
+     if(tf_){
+         //currently support only one input sensor to reuse the TMVA like config 

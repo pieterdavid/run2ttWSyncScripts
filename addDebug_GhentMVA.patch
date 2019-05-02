@@ -1,0 +1,70 @@
+diff --git a/multilep/src/LeptonMvaHelper.cc b/multilep/src/LeptonMvaHelper.cc
+index 53cd88d..3479a9b 100644
+--- a/multilep/src/LeptonMvaHelper.cc
++++ b/multilep/src/LeptonMvaHelper.cc
+@@ -1,4 +1,5 @@
+ //implementation of LeptonMvaHelper class
++#include "FWCore/MessageLogger/interface/MessageLogger.h"
+ #include "heavyNeutrino/multilep/interface/LeptonMvaHelper.h"
+ #include "FWCore/ParameterSet/interface/ParameterSet.h"
+ #include <cmath>
+@@ -125,7 +126,20 @@ double LeptonMvaHelper::leptonMvaMuon(double pt, double eta, double selectedTrac
+ {
+     bookCommonVars(pt, eta, selectedTrackMult, miniIsoCharged, miniIsoNeutral, ptRel, ptRatio, closestJetCsv, closestJetDeepCsv, sip3d, dxy, dz, relIso0p3, relIso0p4);
+     LepGood_segmentCompatibility = segComp;
+-    return reader[0]->EvaluateMVA("BDTG method");
++    const auto value = reader[0]->EvaluateMVA("BDTG method");
++#ifdef EDM_ML_DEBUG
++    if ( type == 2 ) {
++      std::stringstream dbgS;
++      dbgS << "(" << "pt=" << LepGood_pt << ", eta=" << LepGood_eta
++           << ", trackMultClosestJet=" << LepGood_jetNDauChargedMVASel << ", miniIsoCharged=" << LepGood_miniRelIsoCharged << ", miniIsoNeutral=" << LepGood_miniRelIsoNeutral
++           << ", pTRel=" << LepGood_jetPtRelv2 << ", ptRatio=" << LepGood_jetPtRatio << ", relIso=" << LepGood_relIso0p3 << ", deepCsvClosestJet=" << LepGood_jetBTagCSV
++           << ", sip3d=" << LepGood_sip3d << ", dxy=" << LepGood_dxy << ", dz=" << LepGood_dz;
++      dbgS << ", segmentCompatibility=" << LepGood_segmentCompatibility;
++      dbgS << ", ) -> " << value;
++      LogDebug("LeptonMvaHelper") << "TMVA evaluated for muon with " << ((is2017 || is2018)?"2017":"2016") << " BDTG method\n" << dbgS.str();
++    }
++#endif
++    return value;
+ }
+ 
+ double LeptonMvaHelper::leptonMvaElectron(double pt, double eta, double selectedTrackMult, double miniIsoCharged, double miniIsoNeutral, double ptRel, double ptRatio, 
+@@ -135,5 +149,22 @@ double LeptonMvaHelper::leptonMvaElectron(double pt, double eta, double selected
+     LepGood_mvaIdSpring16GP = eleMvaSpring16;
+     LepGood_mvaIdSpring16HZZ = eleMvaHZZ;
+     LepGood_mvaIdFall17noIso = eleMvaFall17;
+-    return reader[1]->EvaluateMVA("BDTG method");
++    const auto value = reader[1]->EvaluateMVA("BDTG method");
++#ifdef EDM_ML_DEBUG
++    if ( type == 2 ) {
++      std::stringstream dbgS;
++      dbgS << "(" << "pt=" << LepGood_pt << ", eta=" << LepGood_eta
++           << ", trackMultClosestJet=" << LepGood_jetNDauChargedMVASel << ", miniIsoCharged=" << LepGood_miniRelIsoCharged << ", miniIsoNeutral=" << LepGood_miniRelIsoNeutral
++           << ", pTRel=" << LepGood_jetPtRelv2 << ", ptRatio=" << LepGood_jetPtRatio << ", relIso=" << LepGood_relIso0p3 << ", deepCsvClosestJet=" << LepGood_jetBTagCSV
++           << ", sip3d=" << LepGood_sip3d << ", dxy=" << LepGood_dxy << ", dz=" << LepGood_dz;
++      if ( !(is2017 || is2018) ) {
++        dbgS << ", electronMvaSpring16GP=" << LepGood_mvaIdSpring16GP;
++      } else {
++        dbgS << ", electronMvaFall17NoIso=" << LepGood_mvaIdFall17noIso;
++      }
++      dbgS << ", ) -> " << value;
++      LogDebug("LeptonMvaHelper") << "TMVA evaluated for electron with " << ((is2017 || is2018)?"2017":"2016") << " BDTG method\n" << dbgS.str();
++    }
++#endif
++    return value;
+ }
+diff --git a/multilep/test/multilep.py b/multilep/test/multilep.py
+index 64d4b08..644d756 100644
+--- a/multilep/test/multilep.py
++++ b/multilep/test/multilep.py
+@@ -40,6 +40,9 @@ process = cms.Process("BlackJackAndHookers")
+ # initialize MessageLogger
+ process.load("FWCore.MessageLogger.MessageLogger_cfi")
+ process.MessageLogger.cerr.FwkReport.reportEvery = 100
++process.MessageLogger.debugs = cms.untracked.PSet(threshold=cms.untracked.string("DEBUG"))
++process.MessageLogger.debugModules.append("blackJackAndHookers")
++process.MessageLogger.categories.append("LeptonMvaHelper")
+ 
+ process.source       = cms.Source("PoolSource", fileNames = cms.untracked.vstring(inputFile.split(",")))
+ process.options      = cms.untracked.PSet(wantSummary = cms.untracked.bool(True))
